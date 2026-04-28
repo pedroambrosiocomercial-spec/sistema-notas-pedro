@@ -31,16 +31,41 @@ export default function Home() {
   async function emitir(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
+    setMensagem("") // Limpa a mensagem anterior
     try {
       const { data: { user } } = await supabase.auth.getUser()
+      
+      // Se não tiver usuário, o erro é aqui
+      if (!user) {
+        setMensagem("❌ Erro: Você não está logado!")
+        return
+      }
+
       const dados = notaSchema.parse({ cliente, cnpj, valor: Number(valor) })
-      const { error } = await supabase.from("notas").insert([{ ...dados, user_id: user?.id }])
-      if (error) throw error
+      
+      const { error } = await supabase.from("notas").insert([{ 
+        cliente: dados.cliente,
+        cnpj: dados.cnpj,
+        valor: dados.valor,
+        user_id: user.id 
+      }])
+
+      if (error) {
+        // Isso aqui vai nos dizer se falta uma coluna no banco
+        setMensagem(`❌ Erro no Banco: ${error.message}`)
+        return
+      }
+
       setMensagem("✅ Sucesso!")
       setCliente(""); setCnpj(""); setValor("");
       buscarNotas()
     } catch (err: any) {
-      setMensagem("❌ Erro nos dados")
+      // Isso aqui vai nos dizer se o Zod barrou algo
+      if (err.errors) {
+        setMensagem(`⚠️ Erro de Digitação: ${err.errors[0].message}`)
+      } else {
+        setMensagem(`❌ Erro Inesperado: ${err.message}`)
+      }
     } finally {
       setLoading(false)
     }
